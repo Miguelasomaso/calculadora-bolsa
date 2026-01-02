@@ -1,57 +1,63 @@
 import streamlit as st
 import requests
+import time
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Stocks Value", page_icon="💎", layout="wide")
 
 API_KEY = "EWVJNFHOMIH4QW49"
 
-# Memoria de la sesión
 if 'data' not in st.session_state:
-    st.session_state.data = {
-        'price': 0.0, 'rev': 0.0, 'shares': 0.0, 
-        'pe': 0.0, 'margin': 0.0, 'ticker': ""
-    }
+    st.session_state.data = {'price': 0.0, 'rev': 0.0, 'shares': 0.0, 'pe': 0.0, 'margin': 0.0, 'ticker': ""}
 
 st.title("Stocks Value 💎")
-st.caption("Conexión Profesional vía Alpha Vantage")
 
 # =========================================
-# 1. BUSCADOR PROFESIONAL (SIN BLOQUEOS)
+# 1. BUSCADOR REFORZADO ALPHA VANTAGE
 # =========================================
 st.header("1. Datos Actuales")
 
 col_ticker, col_btn = st.columns([3, 1])
-ticker_input = col_ticker.text_input("Ticker (ej: META, MSFT, V):", value=st.session_state.data['ticker']).upper()
+ticker_input = col_ticker.text_input("Ticker (ej: META, AAPL, MSFT):", value=st.session_state.data['ticker']).upper()
 
 if col_btn.button("🔍 Obtener Datos", use_container_width=True):
     if ticker_input:
         try:
-            with st.spinner(f"Conectando para obtener datos de {ticker_input}..."):
-                # Petición 1: Precio Actual
-                url_price = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker_input}&apikey={API_KEY}'
-                r_price = requests.get(url_price).json()
+            with st.spinner(f"Buscando {ticker_input} en Alpha Vantage..."):
+                # URL 1: Datos de la empresa (OVERVIEW)
+                url_ov = f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker_input}&apikey={API_KEY}'
+                r_ov = requests.get(url_ov).json()
                 
-                # Petición 2: Datos Fundamentales
-                url_fun = f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker_input}&apikey={API_KEY}'
-                r_fun = requests.get(url_fun).json()
+                # Esperamos un segundo para no saturar la API gratuita
+                time.sleep(1)
                 
-                if "Global Quote" in r_price and "Symbol" in r_fun:
-                    price = float(r_price["Global Quote"]["05. price"])
-                    rev = float(r_fun["RevenueTTM"]) / 1_000_000
-                    shares = float(r_fun["SharesOutstanding"]) / 1_000_000
-                    margin = float(r_fun["ProfitMargin"]) * 100
-                    pe = float(r_fun["ForwardPE"]) if r_fun["ForwardPE"] != 'None' else 0.0
+                # URL 2: Precio (GLOBAL_QUOTE)
+                url_pr = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker_input}&apikey={API_KEY}'
+                r_pr = requests.get(url_pr).json()
+
+                # Verificamos si la API nos ha dado un mensaje de error o límite
+                if "Note" in r_ov or "Note" in r_pr:
+                    st.warning("Límite de la API alcanzado (25/día). Espera un minuto o introduce datos a mano.")
+                elif "Symbol" in r_ov:
+                    # Extraer datos con seguridad
+                    price = float(r_pr.get("Global Quote", {}).get("05. price", 0.0))
+                    rev = float(r_ov.get("RevenueTTM", 0.0)) / 1_000_000
+                    shares = float(r_ov.get("SharesOutstanding", 0.0)) / 1_000_000
+                    margin = float(r_ov.get("ProfitMargin", 0.0)) * 100
+                    pe = float(r_ov.get("ForwardPE", 0.0)) if r_ov.get("ForwardPE") != 'None' else 0.0
                     
                     st.session_state.data.update({
                         'price': price, 'rev': rev, 'shares': shares, 
                         'margin': margin, 'pe': pe, 'ticker': ticker_input
                     })
-                    st.success(f"¡Datos de {ticker_input} cargados!")
+                    st.success(f"¡Datos de {ticker_input} cargados con éxito!")
                 else:
-                    st.error("Ticker no encontrado o límite de API (25 al día) alcanzado.")
+                    st.error(f"No se encontró el ticker '{ticker_input}'. Asegúrate de que es correcto.")
         except Exception as e:
-            st.error("Error al conectar con la fuente de datos.")
+            st.error("Error al procesar los datos de la API.")
+
+# --- EL RESTO DEL CÓDIGO (FORMULARIO Y TARJETAS) SIGUE IGUAL ---
+# (Usa el código que te pasé anteriormente para las secciones 2 y 3)
 
 # Formulario (se auto-rellena)
 c1, c2, c3 = st.columns(3)
@@ -119,4 +125,5 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
 
     with r3:
         st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🚀 Bull Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_bu:.2f}</b></p><p>CAGR: <b>{c_bu:.2f}%</b></p><hr><p style="font-size:12px">Compra hoy:</p><h3>${b_bu:.2f}</h3></div>', unsafe_allow_html=True)
+
 
