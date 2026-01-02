@@ -2,111 +2,154 @@ import streamlit as st
 import requests
 import time
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Stocks Value", page_icon="💎", layout="wide")
+# --- Configuración de la página ---
+# Nota: Streamlit solo permite un set_page_config, he combinado ambos.
+st.set_page_config(page_title="Calculadora de Valor Intrínseco", page_icon="📈", layout="wide")
 
+# Tu clave de Alpha Vantage
 API_KEY = "EWVJNFHOMIH4QW49"
 
+# --- MEMORIA DE LA APP (Session State) ---
 if 'data' not in st.session_state:
-    st.session_state.data = {'price': 0.0, 'rev': 0.0, 'shares': 0.0, 'pe': 0.0, 'margin': 0.0, 'ticker': ""}
+    st.session_state.data = {
+        'price': 0.0, 'rev': 0.0, 'shares': 0.0, 
+        'pe': 0.0, 'margin': 0.0, 'net_income': 0.0
+    }
 
-st.title("Stocks Value 💎")
+st.title("Proyección de Valor y Precio de Entrada Ideal")
+st.info("Priorizamos el Forward P/E (Estimado). Ajusta la 'Rentabilidad Deseada' para ver tu precio de compra.")
 
 # =========================================
-# 1. BUSCADOR
+# SECCIÓN 1: DATOS ACTUALES (Cambiado a Alpha Vantage)
 # =========================================
+st.header("1. Datos Actuales y Estimaciones (NTM)")
+
 col_ticker, col_btn = st.columns([3, 1])
-ticker_input = col_ticker.text_input("Ticker:", value=st.session_state.data['ticker']).upper()
+with col_ticker:
+    ticker_input = st.text_input("Introduce el Ticker (ej: V, MSFT, AMZN):").upper()
+with col_btn:
+    st.write("")
+    st.write("")
+    search_btn = st.button("🔍 Buscar Datos")
 
-if col_btn.button("🔍 Obtener Datos", use_container_width=True):
-    if ticker_input:
-        try:
-            with st.spinner(f"Buscando {ticker_input}..."):
-                url_ov = f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker_input}&apikey={API_KEY}'
-                r_ov = requests.get(url_ov).json()
-                time.sleep(1)
-                url_pr = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker_input}&apikey={API_KEY}'
-                r_pr = requests.get(url_pr).json()
+if search_btn and ticker_input:
+    try:
+        with st.spinner(f"Obteniendo estimaciones para {ticker_input} via Alpha Vantage..."):
+            # Petición 1: Información general (Overview)
+            url_ov = f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker_input}&apikey={API_KEY}'
+            r_ov = requests.get(url_ov).json()
+            
+            # Pausa para no saturar la API gratuita
+            time.sleep(1)
+            
+            # Petición 2: Precio (Global Quote)
+            url_pr = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker_input}&apikey={API_KEY}'
+            r_pr = requests.get(url_pr).json()
 
-                if "Symbol" in r_ov:
-                    st.session_state.data.update({
-                        'price': float(r_pr.get("Global Quote", {}).get("05. price", 0.0)),
-                        'rev': float(r_ov.get("RevenueTTM", 0.0)) / 1_000_000,
-                        'shares': float(r_ov.get("SharesOutstanding", 0.0)) / 1_000_000,
-                        'margin': float(r_ov.get("ProfitMargin", 0.0)) * 100,
-                        'pe': float(r_ov.get("ForwardPE", 0.0)) if r_ov.get("ForwardPE") != 'None' else 0.0,
-                        'ticker': ticker_input
-                    })
-                    st.success(f"Datos de {ticker_input} cargados.")
-                else:
-                    st.error("Límite de API o Ticker no válido.")
-        except:
-            st.error("Error de conexión.")
+            if "Symbol" in r_ov:
+                # Extraer datos
+                f_pe = float(r_ov.get('ForwardPE', 0.0)) if r_ov.get('ForwardPE') != 'None' else float(r_ov.get('TrailingPE', 0.0))
+                price = float(r_pr.get("Global Quote", {}).get("05. price", 0.0))
+                rev = float(r_ov.get('RevenueTTM', 0.0)) / 1_000_000
+                shares = float(r_ov.get('SharesOutstanding', 0.0)) / 1_000_000
+                margin = float(r_ov.get('ProfitMargin', 0.0)) * 100
+                ni = float(r_ov.get('NetIncomeTTM', 0.0)) / 1_000_000
 
-# Formulario (Inputs manuales por si falla la API)
-c1, c2, c3 = st.columns(3)
-c4, c5, c6 = st.columns(3)
+                # Guardar en memoria
+                st.session_state.data['price'] = price
+                st.session_state.data['rev'] = rev
+                st.session_state.data['shares'] = shares
+                st.session_state.data['pe'] = f_pe
+                st.session_state.data['margin'] = margin
+                st.session_state.data['net_income'] = ni
+                
+                st.success(f"Datos cargados. P/E usado: {f_pe:.2f}")
+            else:
+                st.error("Ticker no encontrado o límite de API alcanzado. Introduce los datos manualmente.")
+    except Exception as e:
+        st.error(f"Error al conectar. Introduce los datos manualmente.")
 
-cp_input = c1.number_input("Precio ($)", value=float(st.session_state.data['price']))
-cr_input_mil = c2.number_input("Ingresos (M$)", value=float(st.session_state.data['rev']))
-so_input_mil = c3.number_input("Acciones (M)", value=float(st.session_state.data['shares']))
-pe_actual = c4.number_input("P/E Actual", value=float(st.session_state.data['pe']))
-pm_input = c5.number_input("Margen (%)", value=float(st.session_state.data['margin']))
+# Formulario de entrada
+col_d1, col_d2, col_d3 = st.columns(3)
+col_d4, col_d5, col_d6 = st.columns(3)
+
+with col_d1:
+    cp_input = st.number_input("Precio Acción Actual ($)", value=float(st.session_state.data['price']), format="%.2f")
+with col_d2:
+    cr_input_mil = st.number_input("Ingresos Totales (Millones $)", value=float(st.session_state.data['rev']), format="%.2f")
+with col_d3:
+    so_input_mil = st.number_input("Acciones en Circulación (Millones)", value=float(st.session_state.data['shares']), format="%.2f")
+with col_d4:
+    pe_estimado = st.number_input("P/E Estimado (NTM)", value=float(st.session_state.data['pe']), format="%.2f")
+with col_d5:
+    pm_input = st.number_input("Margen de Beneficio Actual (%)", value=float(st.session_state.data['margin']), format="%.2f")
+with col_d6:
+    ni_input_mil = st.number_input("Ingresos Netos Actuales (Millones $)", value=float(st.session_state.data['net_income']), format="%.2f")
 
 st.markdown("---")
+# =========================================
+# SECCIÓN 2: PROYECCIÓN Y OBJETIVO
+# =========================================
+st.header("2. Escenarios y Objetivo de Rentabilidad")
 
-# =========================================
-# 2. ESCENARIOS
-# =========================================
-projection_years = st.slider("Años proyección", 1, 15, 5)
-desired_return = st.number_input("Rentabilidad deseada %", value=15.0)
+col_years, col_return = st.columns(2)
+with col_years:
+    projection_years = st.slider("Años de proyección", 1, 15, 5)
+with col_return:
+    desired_return = st.number_input("Rentabilidad Anual Deseada (%)", value=15.0, step=0.5)
+
+bear_col, base_col, bull_col = st.columns(3)
 
 def create_case(column, title, emoji, d_rev, d_marg, d_pe, d_sh):
     with column:
         st.subheader(f"{emoji} {title}")
-        rev = st.number_input(f"Crecimiento % ({title})", value=d_rev)
-        marg = st.number_input(f"Margen % ({title})", value=d_marg)
-        pe = st.number_input(f"P/E Futuro ({title})", value=d_pe)
-        sh = st.number_input(f"Acciones % ({title})", value=d_sh)
+        rev = st.number_input(f"Crecimiento Ingresos % - {title}", value=d_rev, format="%.2f", key=f"r_{title}")
+        marg = st.number_input(f"Margen Futuro % - {title}", value=d_marg, format="%.2f", key=f"m_{title}")
+        pe = st.number_input(f"P/E Futuro (NTM) - {title}", value=d_pe, format="%.2f", key=f"p_{title}")
+        sh = st.number_input(f"Cambio Acciones % - {title}", value=d_sh, format="%.2f", key=f"s_{title}")
         return rev, marg, pe, sh
 
-col1, col2, col3 = st.columns(3)
-bear = create_case(col1, "Bear Case", "🐻", 4.0, 10.0, 15.0, 1.0)
-base = create_case(col2, "Base Case", "📊", 8.0, 15.0, 25.0, 0.0) 
-bull = create_case(col3, "Bull Case", "🚀", 15.0, 20.0, 30.0, -1.0)
+bear = create_case(bear_col, "Pesimista", "🐻", 4.0, 10.0, 15.0, 1.0)
+base = create_case(base_col, "Caso Base", "📊", 8.0, 15.0, 25.0, 0.0) 
+bull = create_case(bull_col, "Optimista", "🚀", 15.0, 20.0, 30.0, -1.0)
 
-# =========================================
-# 3. RESULTADOS (ESTILO SEGURO)
-# =========================================
-if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
-    def calc_val(inputs):
-        rg, fm, fpe, sc = inputs
-        try:
-            f_rev = cr_input_mil * ((1 + rg/100)**projection_years)
-            f_ni = f_rev * (fm/100)
-            f_mc = f_ni * fpe
-            f_sh = so_input_mil * ((1 + sc/100)**projection_years)
-            pt = f_mc / f_sh if f_sh > 0 else 0
-            cagr = (((pt / cp_input)**(1/projection_years)) - 1) * 100 if cp_input > 0 and pt > 0 else 0
-            buy = pt / ((1 + desired_return/100)**projection_years)
-            return pt, cagr, buy
-        except:
-            return 0.0, 0.0, 0.0
-
-    pt_be, c_be, b_be = calc_val(bear)
-    pt_ba, c_ba, b_ba = calc_val(base)
-    pt_bu, c_bu, b_bu = calc_val(bull)
+def calc_valuation(inputs):
+    rg, fm, fpe, sc = inputs
+    future_rev = cr_input_mil * ((1 + rg/100)**projection_years)
+    future_ni = future_rev * (fm/100)
+    future_market_cap = future_ni * fpe
+    future_shares = so_input_mil * ((1 + sc/100)**projection_years)
     
-    # Tarjetas limpias
-    r1, r2, r3 = st.columns(3)
+    price_target = future_market_cap / future_shares if future_shares > 0 else 0
+    cagr = (((price_target / cp_input)**(1/projection_years)) - 1) * 100 if cp_input > 0 and price_target > 0 else 0
+    required_price = price_target / ((1 + desired_return/100)**projection_years)
+    
+    return price_target, cagr, required_price
 
-    with r1:
-        st.info(f"🐻 **Bear Case**\n\nPrecio Futuro: ${pt_be:.2f}\n\nCAGR: {c_be:.2f}%\n\nCompra hoy: **${b_be:.2f}**")
-
-    with r2:
-        color_msg = "✅ OPORTUNIDAD" if cp_input <= b_ba and cp_input > 0 else "❌ CARA"
-        st.success(f"📊 **Base Case**\n\nPrecio Futuro: ${pt_ba:.2f}\n\nCAGR: {c_ba:.2f}%\n\nCompra hoy: **${b_ba:.2f}**\n\n{color_msg}")
-
-    with r3:
-        st.info(f"🚀 **Bull Case**\n\nPrecio Futuro: ${pt_bu:.2f}\n\nCAGR: {c_bu:.2f}%\n\nCompra hoy: **${b_bu:.2f}**")
+if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_width=True):
+    res_bear, res_base, res_bull = st.columns(3)
+    cases = [(bear, "Pesimista", "🐻", res_bear), (base, "Base", "📊", res_base), (bull, "Optimista", "🚀", res_bull)]
+    
+    for case_data, name, emoji, col in cases:
+        p_target, cagr_val, req_price = calc_valuation(case_data)
+        
+        with col:
+            st.markdown(f"### {emoji} {name}")
+            st.metric(f"Precio Futuro (Año {projection_years})", f"${p_target:,.2f}")
+            st.metric("Rentabilidad Actual (CAGR)", f"{cagr_val:.2f}%")
+            
+            st.markdown("---")
+            if cp_input <= req_price:
+                st.success(f"✅ ¡COMPRA! (Menor a ${req_price:,.2f})")
+                delta_val = req_price - cp_input
+                d_color = "normal"
+            else:
+                st.error(f"❌ CARA (Buscas ${req_price:,.2f})")
+                delta_val = req_price - cp_input
+                d_color = "inverse"
+            
+            st.metric(f"Precio Entrada para un {desired_return}%", 
+                      f"${req_price:,.2f}", 
+                      delta=f"{delta_val:,.2f} vs Actual",
+                      delta_color=d_color)
 
