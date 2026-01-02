@@ -114,17 +114,67 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
     pt_ba, c_ba, b_ba = calc_val(base)
     pt_bu, c_bu, b_bu = calc_val(bull)
     
+    # CSS para que las tarjetas se adapten al móvil
+    st.markdown("""
+        <style>
+        [data-testid="column"] {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        @media (min-width: 768px) {
+            [data-testid="column"] {
+                width: 33.33% !important;
+                min-width: 33.33% !important;
+            }
+        }
+        .card {
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     r1, r2, r3 = st.columns(3)
 
     with r1:
-        st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🐻 Bear Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_be:.2f}</b></p><p>CAGR: <b>{c_be:.2f}%</b></p><hr><p style="font-size:12px">Precio máximo de compra:</p><h3>${b_be:.2f}</h3></div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div class="card" style="border: 1px solid #ccc; background-color: #f9f9f9;">
+            <h3 style="margin:0;">🐻 Bear Case</h3>
+            <p style="margin: 10px 0 5px 0;">Precio Futuro ({projection_years}a):</p>
+            <b style="font-size: 22px;">${pt_be:.2f}</b>
+            <p style="margin: 5px 0;">CAGR: <b>{c_be:.2f}%</b></p>
+            <hr style="margin: 15px 0;">
+            <p style="font-size: 13px; margin:0;">Compra máx. hoy:</p>
+            <h3 style="margin:0; color: #555;">${b_be:.2f}</h3>
+        </div>
+        ''', unsafe_allow_html=True)
 
     with r2:
-        color = "green" if cp_input <= b_ba else "#d32f2f"
-        st.markdown(f'<div style="border:2px solid {color}; border-radius:12px; padding:20px; margin-bottom:20px; background-color:#f0fdf4; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><h2 style="color:#1b5e20;">📊 Base Case</h2><p>Precio Futuro ({projection_years}a):<br><b style="font-size:24px;">${pt_ba:.2f}</b></p><p>CAGR: <b>{c_ba:.2f}%</b></p><hr><p style="font-size:14px; font-weight:bold;">Precio máximo de compra:</p><h1 style="color:{color};">${b_ba:.2f}</h1></div>', unsafe_allow_html=True)
+        color = "green" if cp_input <= b_ba and cp_input > 0 else "#d32f2f"
+        f_color = "#1b5e20" if color == "green" else "#d32f2f"
+        st.markdown(f'''
+        <div class="card" style="border: 3px solid {color}; background-color: #f0fdf4;">
+            <h2 style="margin:0; color: {f_color};">📊 Base Case</h2>
+            <p style="margin: 10px 0 5px 0;">Precio Futuro ({projection_years}a):</p>
+            <b style="font-size: 28px; color: #000;">${pt_ba:.2f}</b>
+            <p style="margin: 5px 0;">CAGR: <b>{c_ba:.2f}%</b></p>
+            <hr style="border-top: 1px solid #ccc; margin: 15px 0;">
+            <p style="font-size: 15px; font-weight: bold; margin:0;">PRECIO DE COMPRA HOY:</p>
+            <h1 style="color: {color}; margin:0; font-size: 40px;">${b_ba:.2f}</h1>
+        </div>
+        ''', unsafe_allow_html=True)
 
     with r3:
-        st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🚀 Bull Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_bu:.2f}</b></p><p>CAGR: <b>{c_bu:.2f}%</b></p><hr><p style="font-size:12px">Precio máximo de compra:</p><h3>${b_bu:.2f}</h3></div>', unsafe_allow_html=True)
-
-
-
+        st.markdown(f'''
+        <div class="card" style="border: 1px solid #ccc; background-color: #f9f9f9;">
+            <h3 style="margin:0;">🚀 Bull Case</h3>
+            <p style="margin: 10px 0 5px 0;">Precio Futuro ({projection_years}a):</p>
+            <b style="font-size: 22px;">${pt_bu:.2f}</b>
+            <p style="margin: 5px 0;">CAGR: <b>{c_bu:.2f}%</b></p>
+            <hr style="margin: 15px 0;">
+            <p style="font-size: 13px; margin:0;">Compra máx. hoy:</p>
+            <h3 style="margin:0; color: #555;">${b_bu:.2f}</h3>
+        </div>
+        ''', unsafe_allow_html=True)
