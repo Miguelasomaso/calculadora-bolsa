@@ -127,37 +127,35 @@ def calc_valuation(inputs):
     return price_target, cagr, required_price
 
 if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
-    # CSS para separar visualmente las tarjetas en móvil y escritorio
-    st.markdown("""
-        <style>
-        .case-card {
-            border: 1px solid #e6e9ef;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            background-color: #ffffff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     res_bear, res_base, res_bull = st.columns(3)
-    cases = [(bear, "Pesimista", "🐻", res_bear), (base, "Caso Base", "📊", res_base), (bull, "Optimista", "🚀", res_bull)]
+    
+    cases = [
+        (bear, "Pesimista", "🐻", res_bear), 
+        (base, "Caso Base", "📊", res_base), 
+        (bull, "Optimista", "🚀", res_bull)
+    ]
     
     for case_data, name, emoji, col in cases:
         p_target, cagr_val, req_price = calc_valuation(case_data)
         
         with col:
-            # Envolvemos cada columna en un contenedor con borde
-            with st.container():
+            # Tarjetas con borde nativo de Streamlit
+            with st.container(border=True):
                 st.markdown(f"### {emoji} {name}")
                 
-                st.metric(f"Precio Futuro (Año {projection_years})", f"${p_target:,.2f}")
-                st.metric("Rentabilidad Anual (CAGR)", f"{cagr_val:.2f}%")
+                st.metric(
+                    label=f"Precio Futuro (Año {projection_years})", 
+                    value=f"${p_target:,.2f}"
+                )
                 
-                st.markdown("---")
+                st.metric(
+                    label="Rentabilidad Anual (CAGR)", 
+                    value=f"{cagr_val:.2f}%"
+                )
                 
-                # Lógica de color para el precio de compra
+                st.divider() 
+                
+                # Lógica de oportunidad de compra
                 if cp_input <= req_price and cp_input > 0:
                     st.success(f"✅ ¡COMPRA! (Límite: ${req_price:,.2f})")
                     delta_val = req_price - cp_input
@@ -167,13 +165,12 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
                     delta_val = req_price - cp_input
                     d_color = "inverse"
                 
-                st.metric(f"Precio Entrada (Objetivo {desired_return}%)", 
-                          f"${req_price:,.2f}", 
-                          delta=f"{delta_val:,.2f} vs Actual",
-                          delta_color=d_color)
-                
-                # Añadimos un espacio al final para separar en móvil
-                st.write("")
+                st.metric(
+                    label=f"Precio Entrada (Objetivo {desired_return}%)", 
+                    value=f"${req_price:,.2f}", 
+                    delta=f"{delta_val:,.2f} vs Actual",
+                    delta_color=d_color
+                )
 
 
 
