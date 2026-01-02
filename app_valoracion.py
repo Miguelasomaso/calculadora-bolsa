@@ -4,7 +4,7 @@ import yfinance as yf
 # --- CONFIGURACIÓN DE LA APP ---
 st.set_page_config(
     page_title="Stocks Value", 
-    page_icon="💎", 
+    page_icon="📈", 
     layout="wide"
 )
 
@@ -137,3 +137,4 @@ if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_wid
                       delta=f"{delta_val:,.2f} vs Actual",
 
                       delta_color=d_color)
+
