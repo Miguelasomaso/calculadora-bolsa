@@ -1,8 +1,12 @@
 import streamlit as st
 import yfinance as yf
 
-# --- Configuración de la página ---
-st.set_page_config(page_title="Calculadora de Valor Intrínseco", layout="wide")
+# --- CONFIGURACIÓN DE LA APP ---
+st.set_page_config(
+    page_title="Stocks Value", 
+    page_icon="💎", 
+    layout="wide"
+)
 
 # --- MEMORIA DE LA APP (Session State) ---
 if 'data' not in st.session_state:
@@ -131,4 +135,5 @@ if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_wid
             st.metric(f"Precio Entrada para un {desired_return}%", 
                       f"${req_price:,.2f}", 
                       delta=f"{delta_val:,.2f} vs Actual",
+
                       delta_color=d_color)
