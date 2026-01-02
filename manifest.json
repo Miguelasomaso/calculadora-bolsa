@@ -1,16 +1,13 @@
 {
   "short_name": "Stocks Value",
-  "name": "Stocks Value - Proyección 50",
+  "name": "Stocks Value",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2533/2533513.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "start_url": "/",
+  "display": "standalone"
 }
