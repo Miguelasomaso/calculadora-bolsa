@@ -1,10 +1,8 @@
 import streamlit as st
 import yfinance as yf
 
-import streamlit as st
-import yfinance as yf
-
-st.set_page_config(page_title="Stocks Value", page_icon="📈", layout="wide")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Stocks Value", page_icon="💎", layout="wide")
 
 # Truco para forzar el nombre en Android
 st.markdown(f"""
@@ -13,6 +11,7 @@ st.markdown(f"""
         <link rel="manifest" href="manifest.json">
     </head>
 """, unsafe_allow_html=True)
+
 # --- MEMORIA DE LA APP (Session State) ---
 if 'data' not in st.session_state:
     st.session_state.data = {
@@ -20,13 +19,13 @@ if 'data' not in st.session_state:
         'pe': 0.0, 'margin': 0.0, 'net_income': 0.0
     }
 
-st.title("Proyección de Valor y Precio de Entrada Ideal")
-st.info("Priorizamos el Forward P/E (Estimado). Ajusta la 'Rentabilidad Deseada' para ver tu precio de compra.")
+st.title("Stocks Value 💎")
+st.caption("Calculadora de Valor Intrínseco - Rumbo a los 50")
 
 # =========================================
 # SECCIÓN 1: DATOS ACTUALES
 # =========================================
-st.header("1. Datos Actuales y Estimaciones (NTM)")
+st.header("1. Datos Actuales (Yahoo Finance)")
 
 col_ticker, col_btn = st.columns([3, 1])
 with col_ticker:
@@ -38,7 +37,7 @@ with col_btn:
 
 if search_btn and ticker_input:
     try:
-        with st.spinner(f"Obteniendo estimaciones para {ticker_input}..."):
+        with st.spinner(f"Obteniendo datos de {ticker_input}..."):
             stock = yf.Ticker(ticker_input)
             info = stock.info
             
@@ -77,11 +76,11 @@ st.markdown("---")
 # =========================================
 # SECCIÓN 2: PROYECCIÓN Y OBJETIVO
 # =========================================
-st.header("2. Escenarios y Objetivo de Rentabilidad")
+st.header("2. Tus Escenarios")
 
 col_years, col_return = st.columns(2)
 with col_years:
-    projection_years = st.slider("Años de proyección", 1, 15, 5) # Subido a 15 por si quieres ver tu retiro a los 50 más de cerca
+    projection_years = st.slider("Años de proyección", 1, 15, 5)
 with col_return:
     desired_return = st.number_input("Rentabilidad Anual Deseada (%)", value=15.0, step=0.5)
 
@@ -90,16 +89,16 @@ bear_col, base_col, bull_col = st.columns(3)
 def create_case(column, title, emoji, d_rev, d_marg, d_pe, d_sh):
     with column:
         st.subheader(f"{emoji} {title}")
-        rev = st.number_input(f"Crecimiento Ingresos % - {title}", value=d_rev, format="%.2f", key=f"r_{title}")
-        marg = st.number_input(f"Margen Futuro % - {title}", value=d_marg, format="%.2f", key=f"m_{title}")
-        pe = st.number_input(f"P/E Futuro (NTM) - {title}", value=d_pe, format="%.2f", key=f"p_{title}")
-        sh = st.number_input(f"Cambio Acciones % - {title}", value=d_sh, format="%.2f", key=f"s_{title}")
+        rev = st.number_input(f"Crecimiento Ingresos %", value=d_rev, format="%.2f", key=f"r_{title}")
+        marg = st.number_input(f"Margen Futuro %", value=d_marg, format="%.2f", key=f"m_{title}")
+        pe = st.number_input(f"P/E Futuro (NTM)", value=d_pe, format="%.2f", key=f"p_{title}")
+        sh = st.number_input(f"Cambio Acciones %", value=d_sh, format="%.2f", key=f"s_{title}")
         return rev, marg, pe, sh
 
-# Aplicando tu criterio de P/E 25 para el Caso Base
-bear = create_case(bear_col, "Pesimista", "🐻", 4.0, 10.0, 15.0, 1.0)
-base = create_case(base_col, "Caso Base", "📊", 8.0, 15.0, 25.0, 0.0) 
-bull = create_case(bull_col, "Optimista", "🚀", 15.0, 20.0, 30.0, -1.0)
+# Inputs de los escenarios
+bear = create_case(bear_col, "Oso", "🐻", 4.0, 10.0, 15.0, 1.0)
+base = create_case(base_col, "Base", "📊", 8.0, 15.0, 25.0, 0.0) 
+bull = create_case(bull_col, "Toro", "🐂", 15.0, 20.0, 30.0, -1.0)
 
 def calc_valuation(inputs):
     rg, fm, fpe, sc = inputs
@@ -109,46 +108,76 @@ def calc_valuation(inputs):
     future_shares = so_input_mil * ((1 + sc/100)**projection_years)
     
     price_target = future_market_cap / future_shares if future_shares > 0 else 0
-    cagr = (((price_target / cp_input)**(1/projection_years)) - 1) * 100 if cp_input > 0 and price_target > 0 else 0
+    # CAGR calculation
+    if cp_input > 0 and price_target > 0:
+        cagr = (((price_target / cp_input)**(1/projection_years)) - 1) * 100
+    else:
+        cagr = 0
+    # Required Buy Price
     required_price = price_target / ((1 + desired_return/100)**projection_years)
     
     return price_target, cagr, required_price
 
+# =========================================
+# 3. RESULTADOS (TARJETAS VISUALES)
+# =========================================
+
 if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
-    st.divider() # Una línea horizontal de separación general
     
-    # Creamos las 3 columnas
-    col_oso, col_base, col_toro = st.columns(3)
+    # 1. Realizar cálculos
+    pt_bear, cagr_bear, buy_bear = calc_valuation(bear)
+    pt_base, cagr_base, buy_base = calc_valuation(base)
+    pt_bull, cagr_bull, buy_bull = calc_valuation(bull)
+    
+    st.write("") # Espacio
+    
+    # Columnas para mostrar resultados
+    c_oso, c_base, c_toro = st.columns(3)
 
-    # --- CASO OSO (CON BORDE) ---
-    with col_oso:
-        with st.container(border=True):  # <--- ESTO CREA LA CAJA
-            st.markdown("### 🐻 Caso Oso")
-            # Aquí van tus cálculos del caso Oso (asegúrate de que tus variables coinciden)
-            # Ejemplo: st.metric("Precio Compra", f"${precio_oso:.2f}")
-            # Si usas funciones para calcular, llámalas aquí dentro.
-            st.info("Escenario pesimista")
+    # --- TARJETA OSO ---
+    with c_oso:
+        st.markdown(f"""
+        <div style="border: 1px solid #ccc; border-radius: 10px; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9;">
+            <h3 style="margin-top:0; color: #555;">🐻 Caso Oso</h3>
+            <p>Precio Objetivo: <b>${pt_bear:.2f}</b></p>
+            <p>CAGR Esperado: <b>{cagr_bear:.2f}%</b></p>
+            <hr>
+            <p style="font-size:12px">Precio máx. compra:</p>
+            <h3 style="color: #555;">${buy_bear:.2f}</h3>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- CASO BASE (CON BORDE Y DESTACADO) ---
-    with col_base:
-        with st.container(border=True):  # <--- ESTO CREA LA CAJA
-            st.markdown("### ⚖️ Caso Base")
-            # Aquí tus cálculos del caso Base
-            # st.metric("Precio Compra", f"${precio_base:.2f}")
-            
-            # Lógica del color (Verde/Rojo)
-            # if precio_actual < precio_base:
-            #     st.success("¡ZONA DE COMPRA!")
-            # else:
-            #     st.error("Sobrevalorada")
+    # --- TARJETA BASE (DESTACADA) ---
+    with c_base:
+        # Lógica de color para el precio: Verde si está barata, Rojo si está cara
+        color_precio = "green" if cp_input <= buy_base else "#d32f2f"
+        mensaje_compra = "✅ OPORTUNIDAD" if cp_input <= buy_base else "⚠️ ESPERAR"
+        
+        st.markdown(f"""
+        <div style="border: 2px solid {color_precio}; border-radius: 12px; padding: 20px; margin-bottom: 20px; background-color: #f0fdf4; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="margin-top:0; color: #1b5e20;">💎 Caso Base</h2>
+            <p style="font-size: 14px; color: #333;">(Tu múltiplo de 25)</p>
+            <p>Precio Objetivo ({projection_years} años):<br><b>${pt_base:.2f}</b></p>
+            <p>CAGR Esperado: <b>{cagr_base:.2f}%</b></p>
+            <hr style="border-top: 1px solid #ccc;">
+            <p style="font-size:14px; font-weight:bold;">PRECIO DE COMPRA IDEAL:</p>
+            <h1 style="color: {color_precio}; margin:0;">${buy_base:.2f}</h1>
+            <p style="color: {color_precio}; font-weight:bold; margin-top:5px;">{mensaje_compra}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- CASO TORO (CON BORDE) ---
-    with col_toro:
-        with st.container(border=True):  # <--- ESTO CREA LA CAJA
-            st.markdown("### 🐂 Caso Toro")
-            # Aquí tus cálculos del caso Toro
-            # st.metric("Precio Compra", f"${precio_toro:.2f}")
-            st.warning("Escenario optimista")
+    # --- TARJETA TORO ---
+    with c_toro:
+        st.markdown(f"""
+        <div style="border: 1px solid #ccc; border-radius: 10px; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9;">
+            <h3 style="margin-top:0; color: #555;">🐂 Caso Toro</h3>
+            <p>Precio Objetivo: <b>${pt_bull:.2f}</b></p>
+            <p>CAGR Esperado: <b>{cagr_bull:.2f}%</b></p>
+            <hr>
+            <p style="font-size:12px">Precio máx. compra:</p>
+            <h3 style="color: #555;">${buy_bull:.2f}</h3>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 
