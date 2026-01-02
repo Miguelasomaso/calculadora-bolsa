@@ -30,9 +30,11 @@ with col_btn:
 if search_btn and ticker_input:
     try:
         with st.spinner("Buscando..."):
+            # Usamos period="1d" para que la petición sea lo más pequeña posible
             stock = yf.Ticker(ticker_input)
             info = stock.info
-            if info:
+            
+            if info and len(info) > 5:
                 st.session_state.data['price'] = info.get('currentPrice') or info.get('regularMarketPrice') or 0.0
                 st.session_state.data['rev'] = (info.get('totalRevenue', 0.0)) / 1_000_000
                 st.session_state.data['shares'] = (info.get('sharesOutstanding', 0.0)) / 1_000_000
@@ -40,8 +42,10 @@ if search_btn and ticker_input:
                 st.session_state.data['pe'] = info.get('forwardPE') or info.get('trailingPE') or 0.0
                 st.session_state.data['ticker'] = ticker_input
                 st.success("¡Datos cargados!")
-    except:
-        st.warning("Yahoo bloqueado. Introduce datos a mano.")
+            else:
+                st.warning("Yahoo devolvió datos vacíos. Introduce los números a mano.")
+    except Exception as e:
+        st.error("Error de conexión con Yahoo. Introduce los datos manualmente.")
 
 col_d1, col_d2, col_d3 = st.columns(3)
 col_d4, col_d5, col_d6 = st.columns(3)
@@ -107,4 +111,5 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
 
     with res_toro:
         st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🚀 Bull Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_bu:.2f}</b></p><p>CAGR: <b>{c_bu:.2f}%</b></p><hr><p style="font-size:12px">Compra hoy:</p><h3>${b_bu:.2f}</h3></div>', unsafe_allow_html=True)
+
 
