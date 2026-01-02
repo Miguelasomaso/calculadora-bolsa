@@ -27,11 +27,24 @@ with col_btn:
     st.write("")
     search_btn = st.button("🔍 Buscar")
 
+import streamlit as st
+import yfinance as yf
+import requests
+
+# ... (Configuración de página y sesión igual) ...
+
 if search_btn and ticker_input:
     try:
-        with st.spinner("Buscando..."):
-            # Usamos period="1d" para que la petición sea lo más pequeña posible
-            stock = yf.Ticker(ticker_input)
+        with st.spinner(f"Cargando datos de {ticker_input}..."):
+            # CONFIGURACIÓN MODO SIGILO
+            session = requests.Session()
+            # Fingimos que somos un navegador Chrome en Windows
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            })
+            
+            # Pasamos nuestra sesión "disfrazada" a yfinance
+            stock = yf.Ticker(ticker_input, session=session)
             info = stock.info
             
             if info and len(info) > 5:
@@ -41,11 +54,12 @@ if search_btn and ticker_input:
                 st.session_state.data['margin'] = (info.get('profitMargins', 0.0)) * 100
                 st.session_state.data['pe'] = info.get('forwardPE') or info.get('trailingPE') or 0.0
                 st.session_state.data['ticker'] = ticker_input
-                st.success("¡Datos cargados!")
+                st.success(f"¡Conexión establecida con {ticker_input}!")
             else:
-                st.warning("Yahoo devolvió datos vacíos. Introduce los números a mano.")
+                st.warning("Yahoo detecta el servidor. Intenta pulsar 'Buscar' de nuevo o usa datos manuales.")
+                
     except Exception as e:
-        st.error("Error de conexión con Yahoo. Introduce los datos manualmente.")
+        st.error("Error técnico en la conexión. Yahoo sigue bloqueando el servidor.")
 
 col_d1, col_d2, col_d3 = st.columns(3)
 col_d4, col_d5, col_d6 = st.columns(3)
@@ -111,5 +125,6 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
 
     with res_toro:
         st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🚀 Bull Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_bu:.2f}</b></p><p>CAGR: <b>{c_bu:.2f}%</b></p><hr><p style="font-size:12px">Compra hoy:</p><h3>${b_bu:.2f}</h3></div>', unsafe_allow_html=True)
+
 
 
