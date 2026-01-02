@@ -115,33 +115,41 @@ def calc_valuation(inputs):
     return price_target, cagr, required_price
 
 if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
-    res_bear, res_base, res_bull = st.columns(3)
-    cases = [(bear, "Pesimista", "🐻", res_bear), (base, "Base", "📊", res_base), (bull, "Optimista", "🚀", res_bull)]
+    st.divider() # Una línea horizontal de separación general
     
-    for case_data, name, emoji, col in cases:
-        p_target, cagr_val, req_price = calc_valuation(case_data)
-        
-        with col:
-            st.markdown(f"### {emoji} {name}")
-            # AQUÍ ESTÁ EL CAMBIO: Ahora usa la variable projection_years
-            st.metric(f"Precio Futuro (Año {projection_years})", f"${p_target:,.2f}")
-            st.metric("Rentabilidad Actual (CAGR)", f"{cagr_val:.2f}%")
-            
-            st.markdown("---")
-            if cp_input <= req_price:
-                st.success(f"✅ ¡COMPRA! (Menor a ${req_price:,.2f})")
-                delta_val = req_price - cp_input
-                d_color = "normal"
-            else:
-                st.error(f"❌ CARA (Buscas ${req_price:,.2f})")
-                delta_val = req_price - cp_input
-                d_color = "inverse"
-            
-            st.metric(f"Precio Entrada para un {desired_return}%", 
-                      f"${req_price:,.2f}", 
-                      delta=f"{delta_val:,.2f} vs Actual",
+    # Creamos las 3 columnas
+    col_oso, col_base, col_toro = st.columns(3)
 
-                      delta_color=d_color)
+    # --- CASO OSO (CON BORDE) ---
+    with col_oso:
+        with st.container(border=True):  # <--- ESTO CREA LA CAJA
+            st.markdown("### 🐻 Caso Oso")
+            # Aquí van tus cálculos del caso Oso (asegúrate de que tus variables coinciden)
+            # Ejemplo: st.metric("Precio Compra", f"${precio_oso:.2f}")
+            # Si usas funciones para calcular, llámalas aquí dentro.
+            st.info("Escenario pesimista")
+
+    # --- CASO BASE (CON BORDE Y DESTACADO) ---
+    with col_base:
+        with st.container(border=True):  # <--- ESTO CREA LA CAJA
+            st.markdown("### ⚖️ Caso Base")
+            # Aquí tus cálculos del caso Base
+            # st.metric("Precio Compra", f"${precio_base:.2f}")
+            
+            # Lógica del color (Verde/Rojo)
+            # if precio_actual < precio_base:
+            #     st.success("¡ZONA DE COMPRA!")
+            # else:
+            #     st.error("Sobrevalorada")
+
+    # --- CASO TORO (CON BORDE) ---
+    with col_toro:
+        with st.container(border=True):  # <--- ESTO CREA LA CAJA
+            st.markdown("### 🐂 Caso Toro")
+            # Aquí tus cálculos del caso Toro
+            # st.metric("Precio Compra", f"${precio_toro:.2f}")
+            st.warning("Escenario optimista")
+
 
 
 
