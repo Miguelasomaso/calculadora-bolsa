@@ -1,138 +1,122 @@
 import streamlit as st
-import yfinance as yf
-st.set_page_config(
-    page_title="Stocks Value", 
-    page_icon="📈", 
-    layout="wide"
-)
-# --- Configuración de la página ---
-st.set_page_config(page_title="Calculadora de Valor Intrínseco", layout="wide")
+import requests
 
-# --- MEMORIA DE LA APP (Session State) ---
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Stocks Value", page_icon="💎", layout="wide")
+
+API_KEY = "EWVJNFHOMIH4QW49"
+
+# Memoria de la sesión
 if 'data' not in st.session_state:
     st.session_state.data = {
         'price': 0.0, 'rev': 0.0, 'shares': 0.0, 
-        'pe': 0.0, 'margin': 0.0, 'net_income': 0.0
+        'pe': 0.0, 'margin': 0.0, 'ticker': ""
     }
 
-st.title("Proyección de Valor y Precio de Entrada Ideal")
-st.info("Priorizamos el Forward P/E (Estimado). Ajusta la 'Rentabilidad Deseada' para ver tu precio de compra.")
+st.title("Stocks Value 💎")
+st.caption("Conexión Profesional vía Alpha Vantage")
 
 # =========================================
-# SECCIÓN 1: DATOS ACTUALES
+# 1. BUSCADOR PROFESIONAL (SIN BLOQUEOS)
 # =========================================
-st.header("1. Datos Actuales y Estimaciones (NTM)")
+st.header("1. Datos Actuales")
 
 col_ticker, col_btn = st.columns([3, 1])
-with col_ticker:
-    ticker_input = st.text_input("Introduce el Ticker (ej: V, MSFT, AMZN):").upper()
-with col_btn:
-    st.write("")
-    st.write("")
-    search_btn = st.button("🔍 Buscar Datos")
+ticker_input = col_ticker.text_input("Ticker (ej: META, MSFT, V):", value=st.session_state.data['ticker']).upper()
 
-if search_btn and ticker_input:
-    try:
-        with st.spinner(f"Obteniendo estimaciones para {ticker_input}..."):
-            stock = yf.Ticker(ticker_input)
-            info = stock.info
-            
-            f_pe = info.get('forwardPE')
-            if f_pe is None:
-                f_pe = info.get('trailingPE', 0.0)
-            
-            st.session_state.data['price'] = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
-            st.session_state.data['rev'] = (info.get('totalRevenue', 0.0)) / 1_000_000
-            st.session_state.data['shares'] = (info.get('sharesOutstanding', 0.0)) / 1_000_000
-            st.session_state.data['pe'] = f_pe
-            st.session_state.data['margin'] = (info.get('profitMargins', 0.0)) * 100
-            st.session_state.data['net_income'] = (info.get('netIncomeToCommon', 0.0)) / 1_000_000
-        st.success(f"Datos cargados. P/E usado: {f_pe:.2f}")
-    except:
-        st.error("Error al conectar. Introduce los datos manualmente.")
+if col_btn.button("🔍 Obtener Datos", use_container_width=True):
+    if ticker_input:
+        try:
+            with st.spinner(f"Conectando para obtener datos de {ticker_input}..."):
+                # Petición 1: Precio Actual
+                url_price = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker_input}&apikey={API_KEY}'
+                r_price = requests.get(url_price).json()
+                
+                # Petición 2: Datos Fundamentales
+                url_fun = f'https://www.alphavantage.co/query?function=OVERVIEW&symbol={ticker_input}&apikey={API_KEY}'
+                r_fun = requests.get(url_fun).json()
+                
+                if "Global Quote" in r_price and "Symbol" in r_fun:
+                    price = float(r_price["Global Quote"]["05. price"])
+                    rev = float(r_fun["RevenueTTM"]) / 1_000_000
+                    shares = float(r_fun["SharesOutstanding"]) / 1_000_000
+                    margin = float(r_fun["ProfitMargin"]) * 100
+                    pe = float(r_fun["ForwardPE"]) if r_fun["ForwardPE"] != 'None' else 0.0
+                    
+                    st.session_state.data.update({
+                        'price': price, 'rev': rev, 'shares': shares, 
+                        'margin': margin, 'pe': pe, 'ticker': ticker_input
+                    })
+                    st.success(f"¡Datos de {ticker_input} cargados!")
+                else:
+                    st.error("Ticker no encontrado o límite de API (25 al día) alcanzado.")
+        except Exception as e:
+            st.error("Error al conectar con la fuente de datos.")
 
-# Formulario de entrada
-col_d1, col_d2, col_d3 = st.columns(3)
-col_d4, col_d5, col_d6 = st.columns(3)
+# Formulario (se auto-rellena)
+c1, c2, c3 = st.columns(3)
+c4, c5, c6 = st.columns(3)
 
-with col_d1:
-    cp_input = st.number_input("Precio Acción Actual ($)", value=float(st.session_state.data['price']), format="%.2f")
-with col_d2:
-    cr_input_mil = st.number_input("Ingresos Totales (Millones $)", value=float(st.session_state.data['rev']), format="%.2f")
-with col_d3:
-    so_input_mil = st.number_input("Acciones en Circulación (Millones)", value=float(st.session_state.data['shares']), format="%.2f")
-with col_d4:
-    pe_estimado = st.number_input("P/E Estimado (NTM)", value=float(st.session_state.data['pe']), format="%.2f")
-with col_d5:
-    pm_input = st.number_input("Margen de Beneficio Actual (%)", value=float(st.session_state.data['margin']), format="%.2f")
-with col_d6:
-    ni_input_mil = st.number_input("Ingresos Netos Actuales (Millones $)", value=float(st.session_state.data['net_income']), format="%.2f")
+cp_input = c1.number_input("Precio Acción ($)", value=float(st.session_state.data['price']), format="%.2f")
+cr_input_mil = c2.number_input("Ingresos Totales (M$)", value=float(st.session_state.data['rev']), format="%.2f")
+so_input_mil = c3.number_input("Acciones (M)", value=float(st.session_state.data['shares']), format="%.2f")
+pe_actual = c4.number_input("P/E Estimado", value=float(st.session_state.data['pe']), format="%.2f")
+pm_input = c5.number_input("Margen (%)", value=float(st.session_state.data['margin']), format="%.2f")
+ni_calc = (cr_input_mil * (pm_input/100))
+c6.write(f"Beneficio Est. (M$): \n\n **${ni_calc:.2f}**")
 
+# =========================================
+# 2. ESCENARIOS
+# =========================================
 st.markdown("---")
-# =========================================
-# SECCIÓN 2: PROYECCIÓN Y OBJETIVO
-# =========================================
-st.header("2. Escenarios y Objetivo de Rentabilidad")
+st.header("2. Tus Escenarios de Proyección")
 
-col_years, col_return = st.columns(2)
-with col_years:
-    projection_years = st.slider("Años de proyección", 1, 15, 5) # Subido a 15 por si quieres ver tu retiro a los 50 más de cerca
-with col_return:
-    desired_return = st.number_input("Rentabilidad Anual Deseada (%)", value=15.0, step=0.5)
-
-bear_col, base_col, bull_col = st.columns(3)
+col_y, col_r = st.columns(2)
+projection_years = col_y.slider("Años proyección", 1, 15, 5)
+desired_return = col_r.number_input("Rentabilidad deseada (%)", value=15.0)
 
 def create_case(column, title, emoji, d_rev, d_marg, d_pe, d_sh):
     with column:
         st.subheader(f"{emoji} {title}")
-        rev = st.number_input(f"Crecimiento Ingresos % - {title}", value=d_rev, format="%.2f", key=f"r_{title}")
-        marg = st.number_input(f"Margen Futuro % - {title}", value=d_marg, format="%.2f", key=f"m_{title}")
-        pe = st.number_input(f"P/E Futuro (NTM) - {title}", value=d_pe, format="%.2f", key=f"p_{title}")
-        sh = st.number_input(f"Cambio Acciones % - {title}", value=d_sh, format="%.2f", key=f"s_{title}")
+        rev = st.number_input(f"Crecimiento %", value=d_rev, key=f"r_{title}")
+        marg = st.number_input(f"Margen %", value=d_marg, key=f"m_{title}")
+        pe = st.number_input(f"P/E Futuro", value=d_pe, key=f"p_{title}")
+        sh = st.number_input(f"Acciones %", value=d_sh, key=f"s_{title}")
         return rev, marg, pe, sh
 
-# Aplicando tu criterio de P/E 25 para el Caso Base
-bear = create_case(bear_col, "Pesimista", "🐻", 4.0, 10.0, 15.0, 1.0)
-base = create_case(base_col, "Caso Base", "📊", 8.0, 15.0, 25.0, 0.0) 
-bull = create_case(bull_col, "Optimista", "🚀", 15.0, 20.0, 30.0, -1.0)
+col1, col2, col3 = st.columns(3)
+bear = create_case(col1, "Bear Case", "🐻", 4.0, 10.0, 15.0, 1.0)
+base = create_case(col2, "Base Case", "📊", 8.0, 15.0, 25.0, 0.0) 
+bull = create_case(col3, "Bull Case", "🚀", 15.0, 20.0, 30.0, -1.0)
 
-def calc_valuation(inputs):
-    rg, fm, fpe, sc = inputs
-    future_rev = cr_input_mil * ((1 + rg/100)**projection_years)
-    future_ni = future_rev * (fm/100)
-    future_market_cap = future_ni * fpe
-    future_shares = so_input_mil * ((1 + sc/100)**projection_years)
-    
-    price_target = future_market_cap / future_shares if future_shares > 0 else 0
-    cagr = (((price_target / cp_input)**(1/projection_years)) - 1) * 100 if cp_input > 0 and price_target > 0 else 0
-    required_price = price_target / ((1 + desired_return/100)**projection_years)
-    
-    return price_target, cagr, required_price
+# =========================================
+# 3. RESULTADOS (TARJETAS HTML)
+# =========================================
+if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
+    def calc_val(inputs):
+        rg, fm, fpe, sc = inputs
+        f_rev = cr_input_mil * ((1 + rg/100)**projection_years)
+        f_ni = f_rev * (fm/100)
+        f_mc = f_ni * fpe
+        f_sh = so_input_mil * ((1 + sc/100)**projection_years)
+        pt = f_mc / f_sh if f_sh > 0 else 0
+        cagr = (((pt / cp_input)**(1/projection_years)) - 1) * 100 if cp_input > 0 and pt > 0 else 0
+        buy = pt / ((1 + desired_return/100)**projection_years)
+        return pt, cagr, buy
 
-if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_width=True):
-    res_bear, res_base, res_bull = st.columns(3)
-    cases = [(bear, "Pesimista", "🐻", res_bear), (base, "Base", "📊", res_base), (bull, "Optimista", "🚀", res_bull)]
+    pt_be, c_be, b_be = calc_val(bear)
+    pt_ba, c_ba, b_ba = calc_val(base)
+    pt_bu, c_bu, b_bu = calc_val(bull)
     
-    for case_data, name, emoji, col in cases:
-        p_target, cagr_val, req_price = calc_valuation(case_data)
-        
-        with col:
-            st.markdown(f"### {emoji} {name}")
-            # AQUÍ ESTÁ EL CAMBIO: Ahora usa la variable projection_years
-            st.metric(f"Precio Futuro (Año {projection_years})", f"${p_target:,.2f}")
-            st.metric("Rentabilidad Actual (CAGR)", f"{cagr_val:.2f}%")
-            
-            st.markdown("---")
-            if cp_input <= req_price:
-                st.success(f"✅ ¡COMPRA! (Menor a ${req_price:,.2f})")
-                delta_val = req_price - cp_input
-                d_color = "normal"
-            else:
-                st.error(f"❌ CARA (Buscas ${req_price:,.2f})")
-                delta_val = req_price - cp_input
-                d_color = "inverse"
-            
-            st.metric(f"Precio Entrada para un {desired_return}%", 
-                      f"${req_price:,.2f}", 
-                      delta=f"{delta_val:,.2f} vs Actual",
-                      delta_color=d_color)
+    r1, r2, r3 = st.columns(3)
+
+    with r1:
+        st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🐻 Bear Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_be:.2f}</b></p><p>CAGR: <b>{c_be:.2f}%</b></p><hr><p style="font-size:12px">Compra hoy:</p><h3>${b_be:.2f}</h3></div>', unsafe_allow_html=True)
+
+    with r2:
+        color = "green" if cp_input <= b_ba else "#d32f2f"
+        st.markdown(f'<div style="border:2px solid {color}; border-radius:12px; padding:20px; margin-bottom:20px; background-color:#f0fdf4; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><h2 style="color:#1b5e20;">📊 Base Case</h2><p>Precio Futuro ({projection_years}a):<br><b style="font-size:24px;">${pt_ba:.2f}</b></p><p>CAGR: <b>{c_ba:.2f}%</b></p><hr><p style="font-size:14px; font-weight:bold;">COMPRA HOY:</p><h1 style="color:{color};">${b_ba:.2f}</h1></div>', unsafe_allow_html=True)
+
+    with r3:
+        st.markdown(f'<div style="border:1px solid #ccc; border-radius:10px; padding:15px; margin-bottom:20px; background-color:#f9f9f9;"><h3>🚀 Bull Case</h3><p>Precio Futuro ({projection_years}a):<br><b>${pt_bu:.2f}</b></p><p>CAGR: <b>{c_bu:.2f}%</b></p><hr><p style="font-size:12px">Compra hoy:</p><h3>${b_bu:.2f}</h3></div>', unsafe_allow_html=True)
+
