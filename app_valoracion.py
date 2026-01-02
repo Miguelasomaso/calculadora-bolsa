@@ -16,7 +16,8 @@ st.markdown(f"""
 if 'data' not in st.session_state:
     st.session_state.data = {
         'price': 0.0, 'rev': 0.0, 'shares': 0.0, 
-        'pe': 0.0, 'margin': 0.0, 'net_income': 0.0
+        'pe': 0.0, 'margin': 0.0, 'net_income': 0.0,
+        'ticker': ""
     }
 
 st.title("Stocks Value 💎")
@@ -29,7 +30,7 @@ st.header("1. Datos Actuales (Yahoo Finance)")
 
 col_ticker, col_btn = st.columns([3, 1])
 with col_ticker:
-    ticker_input = st.text_input("Introduce el Ticker (ej: META, V, MSFT):").upper()
+    ticker_input = st.text_input("Introduce el Ticker (ej: META, V, MSFT):", value=st.session_state.data['ticker']).upper()
 with col_btn:
     st.write("")
     st.write("")
@@ -38,24 +39,32 @@ with col_btn:
 if search_btn and ticker_input:
     try:
         with st.spinner(f"Obteniendo datos de {ticker_input}..."):
+            # Usamos un método más directo para evitar bloqueos
             stock = yf.Ticker(ticker_input)
+            # Forzamos la descarga de datos rápidos (fast_info) y fundamentales
             info = stock.info
             
-            f_pe = info.get('forwardPE')
-            if f_pe is None:
-                f_pe = info.get('trailingPE', 0.0)
-            
-            st.session_state.data['price'] = info.get('currentPrice', info.get('regularMarketPrice', 0.0))
+            # Si info viene vacío, lanzamos error para el bloque except
+            if not info or len(info) < 5:
+                raise ValueError("Ticker no encontrado")
+
+            # Extracción segura de datos
+            st.session_state.data['price'] = info.get('currentPrice') or info.get('regularMarketPrice') or 0.0
             st.session_state.data['rev'] = (info.get('totalRevenue', 0.0)) / 1_000_000
             st.session_state.data['shares'] = (info.get('sharesOutstanding', 0.0)) / 1_000_000
-            st.session_state.data['pe'] = f_pe
             st.session_state.data['margin'] = (info.get('profitMargins', 0.0)) * 100
             st.session_state.data['net_income'] = (info.get('netIncomeToCommon', 0.0)) / 1_000_000
-        st.success(f"Datos cargados. P/E usado: {f_pe:.2f}")
-    except:
-        st.error("Error al conectar. Introduce los datos manualmente.")
+            st.session_state.data['ticker'] = ticker_input
+            
+            # Prioridad al Forward P/E
+            f_pe = info.get('forwardPE') or info.get('trailingPE') or 0.0
+            st.session_state.data['pe'] = f_pe
 
-# Formulario de entrada
+        st.success(f"Datos de {ticker_input} cargados correctamente.")
+    except Exception as e:
+        st.error(f"No se pudo encontrar '{ticker_input}'. Revisa el Ticker o introduce los datos a mano.")
+
+# Formulario de entrada (ahora se actualiza con los datos de sesión)
 col_d1, col_d2, col_d3 = st.columns(3)
 col_d4, col_d5, col_d6 = st.columns(3)
 
@@ -95,7 +104,7 @@ def create_case(column, title, emoji, d_rev, d_marg, d_pe, d_sh):
         sh = st.number_input(f"Cambio Acciones %", value=d_sh, format="%.2f", key=f"s_{title}")
         return rev, marg, pe, sh
 
-# Inputs de los escenarios CON LOS NOMBRES NUEVOS
+# Inputs de los escenarios con tus nuevos nombres e iconos
 bear = create_case(bear_col, "Bear Case", "🐻", 4.0, 10.0, 15.0, 1.0)
 base = create_case(base_col, "Base Case", "📊", 8.0, 15.0, 25.0, 0.0) 
 bull = create_case(bull_col, "Bull Case", "🚀", 15.0, 20.0, 30.0, -1.0)
@@ -109,12 +118,10 @@ def calc_valuation(inputs):
     
     price_target = future_market_cap / future_shares if future_shares > 0 else 0
     
-    # CAGR calculation
     if cp_input > 0 and price_target > 0:
         cagr = (((price_target / cp_input)**(1/projection_years)) - 1) * 100
     else:
         cagr = 0
-    # Required Buy Price
     required_price = price_target / ((1 + desired_return/100)**projection_years)
     
     return price_target, cagr, required_price
@@ -125,17 +132,14 @@ def calc_valuation(inputs):
 
 if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
     
-    # 1. Realizar cálculos
     pt_bear, cagr_bear, buy_bear = calc_valuation(bear)
     pt_base, cagr_base, buy_base = calc_valuation(base)
     pt_bull, cagr_bull, buy_bull = calc_valuation(bull)
     
-    st.write("") # Espacio
+    st.write("") 
     
-    # Columnas para mostrar resultados
     c_oso, c_base, c_toro = st.columns(3)
 
-    # --- TARJETA BEAR CASE (OSO) ---
     with c_oso:
         st.markdown(f"""
         <div style="border: 1px solid #ccc; border-radius: 10px; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9;">
@@ -148,9 +152,7 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
         </div>
         """, unsafe_allow_html=True)
 
-    # --- TARJETA BASE CASE (TU CASO) ---
     with c_base:
-        # Lógica de color para el precio: Verde si está barata, Rojo si está cara
         color_precio = "green" if cp_input <= buy_base else "#d32f2f"
         mensaje_compra = "✅ OPORTUNIDAD" if cp_input <= buy_base else "⚠️ ESPERAR"
         
@@ -167,7 +169,6 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
         </div>
         """, unsafe_allow_html=True)
 
-    # --- TARJETA BULL CASE (TORO) ---
     with c_toro:
         st.markdown(f"""
         <div style="border: 1px solid #ccc; border-radius: 10px; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9;">
@@ -179,10 +180,6 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
             <h3 style="color: #555;">${buy_bull:.2f}</h3>
         </div>
         """, unsafe_allow_html=True)
-
-
-
-
 
 
 
