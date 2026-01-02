@@ -4,7 +4,7 @@ import yfinance as yf
 import streamlit as st
 import yfinance as yf
 
-st.set_page_config(page_title="Stocks Value", page_icon="💎", layout="wide")
+st.set_page_config(page_title="Stocks Value", page_icon="📈", layout="wide")
 
 # Truco para forzar el nombre en Android
 st.markdown(f"""
@@ -142,6 +142,7 @@ if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=T
                       delta=f"{delta_val:,.2f} vs Actual",
 
                       delta_color=d_color)
+
 
 
 
