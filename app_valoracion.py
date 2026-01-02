@@ -126,7 +126,7 @@ def calc_valuation(inputs):
     
     return price_target, cagr, required_price
 
-if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_width=True):
+if st.button("CALCULAR VALOR INTRÍNSECO", type="primary", use_container_width=True):
     res_bear, res_base, res_bull = st.columns(3)
     cases = [(bear, "Pesimista", "🐻", res_bear), (base, "Base", "📊", res_base), (bull, "Optimista", "🚀", res_bull)]
     
@@ -152,4 +152,5 @@ if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_wid
                       f"${req_price:,.2f}", 
                       delta=f"{delta_val:,.2f} vs Actual",
                       delta_color=d_color)
+
 
