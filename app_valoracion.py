@@ -1,13 +1,22 @@
 import streamlit as st
 import yfinance as yf
 
-# --- CONFIGURACIÓN DE LA APP ---
-st.set_page_config(
-    page_title="Stocks Value", 
-    page_icon="📈", 
-    layout="wide"
-)
+import streamlit as st
+import yfinance as yf
 
+# --- ESTO ES LO QUE CAMBIA ---
+st.set_page_config(page_title="Stocks Value", page_icon="📈", layout="wide")
+
+# Truco para forzar el nombre en Android
+st.markdown(f"""
+    <head>
+        <title>Stocks Value</title>
+        <link rel="manifest" href="manifest.json">
+    </head>
+""", unsafe_allow_html=True)
+# -----------------------------
+
+# ... (aquí sigue el resto de tu código de la calculadora)
 # --- MEMORIA DE LA APP (Session State) ---
 if 'data' not in st.session_state:
     st.session_state.data = {
@@ -137,4 +146,5 @@ if st.button("CALCULAR VALORACIÓN DINÁMICA", type="primary", use_container_wid
                       delta=f"{delta_val:,.2f} vs Actual",
 
                       delta_color=d_color)
+
 
